@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 윤리 단어 찾기</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
+    background: linear-gradient(135deg, #EEEDFE 0%, #E1F5EE 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    color: #2C2C2A;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 1100px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  header h1 {
+    font-size: 28px;
+    color: #3C3489;
+    margin-bottom: 4px;
+  }
+  header p { color: #5F5E5A; font-size: 15px; }
+
+  .topbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .timer, .progress {
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 22px;
+    font-size: 20px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .timer { color: #D85A30; }
+  .progress { color: #1D9E75; }
+  .btn {
+    background: #534AB7;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(83,74,183,0.3);
+  }
+  .btn:hover { background: #3C3489; }
+
+  .game {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .grid-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: 3px;
+    touch-action: none;
+    user-select: none;
+  }
+  .cell {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    background: #F1EFE8;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.1s;
+    color: #2C2C2A;
+  }
+  .cell.sel { background: #FAC775; color: #633806; }
+  .cell.found { background: #9FE1CB; color: #04342C; }
+  .cell.found.sel { background: #5DCAA5; }
+
+  .side {
+    background: #fff;
+    border-radius: 18px;
+    padding: 20px;
+    min-width: 220px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .side h2 {
+    font-size: 18px;
+    color: #3C3489;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #EEEDFE;
+  }
+  .word-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .word {
+    font-size: 15px;
+    font-weight: 600;
+    color: #444441;
+    padding: 6px 4px;
+    border-radius: 8px;
+    text-align: center;
+    background: #F1EFE8;
+  }
+  .word.done {
+    color: #B4B2A9;
+    text-decoration: line-through;
+    background: #E1F5EE;
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(60,52,137,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .overlay.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 24px;
+    padding: 40px 50px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+    animation: pop 0.3s ease;
+  }
+  @keyframes pop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal .emoji { font-size: 56px; margin-bottom: 10px; }
+  .modal h2 { font-size: 30px; color: #3C3489; margin-bottom: 12px; }
+  .modal .time-result {
+    font-size: 44px;
+    font-weight: 800;
+    color: #D85A30;
+    margin: 16px 0;
+  }
+  .modal p { color: #5F5E5A; font-size: 16px; margin-bottom: 24px; }
+
+  @media (max-width: 720px) {
+    .cell { width: 26px; height: 26px; font-size: 14px; border-radius: 5px; }
+    #grid { gap: 2px; }
+    header h1 { font-size: 22px; }
+    .side { min-width: 180px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔍 AI 윤리 단어 찾기</h1>
+    <p>3대 기본원칙과 10대 핵심요건 단어를 찾아보세요! (가로·세로·대각선 모두 가능)</p>
+  </header>
+
+  <div class="topbar">
+    <div class="timer">⏱️ <span id="timer">00:00</span></div>
+    <div class="progress">✅ <span id="found-count">0</span> / 13</div>
+    <button class="btn" onclick="newGame()">새 게임</button>
+  </div>
+
+  <div class="game">
+    <div class="grid-card">
+      <div id="grid"></div>
+    </div>
+    <div class="side">
+      <h2>찾을 단어 (13개)</h2>
+      <div class="word-list" id="word-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="emoji">🎉</div>
+    <h2>축하합니다!</h2>
+    <p>모든 단어를 찾았어요!</p>
+    <div class="time-result" id="final-time">00:00</div>
+    <p>걸린 시간</p>
+    <button class="btn" onclick="newGame()">다시 하기</button>
+  </div>
+</div>
+
+<script>
+const WORDS = ["존엄성","공공선","합목적성","인권보장","프라이버시","다양성","침해금지","공공성","연대성","데이터","책임성","안전성","투명성"];
+const SIZE = 13;
+const POOL = "가나다라마바사아자차카타파하거너더러머버서어저처커터퍼허고노도로모보소오조초코토포호구누두루무부수우주추쿠투푸후그느드르므브스으즈츠크트프흐기니디리미비시이지치키티피히";
+
+const DIRS = [
+  [0,1],[0,-1],[1,0],[-1,0],
+  [1,1],[1,-1],[-1,1],[-1,-1]
+];
+
+let grid = [];
+let placements = {};
+let foundWords = new Set();
+let startTime = null;
+let timerInterval = null;
+
+function randInt(n){ return Math.floor(Math.random()*n); }
+
+function tryPlace(word){
+  const chars = [...word];
+  const len = chars.length;
+  for(let attempt=0; attempt<200; attempt++){
+    const dir = DIRS[randInt(DIRS.length)];
+    const [dr,dc] = dir;
+    const r0 = randInt(SIZE), c0 = randInt(SIZE);
+    const rEnd = r0 + dr*(len-1), cEnd = c0 + dc*(len-1);
+    if(rEnd<0||rEnd>=SIZE||cEnd<0||cEnd>=SIZE) continue;
+    let ok = true;
+    const coords = [];
+    for(let i=0;i<len;i++){
+      const r=r0+dr*i, c=c0+dc*i;
+      if(grid[r][c]!==null && grid[r][c]!==chars[i]){ ok=false; break; }
+      coords.push([r,c]);
+    }
+    if(!ok) continue;
+    for(let i=0;i<len;i++){
+      const r=r0+dr*i, c=c0+dc*i;
+      grid[r][c]=chars[i];
+    }
+    placements[word]=coords;
+    return true;
+  }
+  return false;
+}
+
+function buildGrid(){
+  let success=false;
+  while(!success){
+    grid = Array.from({length:SIZE},()=>Array(SIZE).fill(null));
+    placements = {};
+    success = true;
+    const sorted = [...WORDS].sort((a,b)=>[...b].length-[...a].length);
+    for(const w of sorted){
+      if(!tryPlace(w)){ success=false; break; }
+    }
+  }
+  for(let r=0;r<SIZE;r++)
+    for(let c=0;c<SIZE;c++)
+      if(grid[r][c]===null)
+        grid[r][c]=POOL[randInt(POOL.length)];
+}
+
+function renderGrid(){
+  const g = document.getElementById('grid');
+  g.innerHTML='';
+  for(let r=0;r<SIZE;r++){
+    for(let c=0;c<SIZE;c++){
+      const d=document.createElement('div');
+      d.className='cell';
+      d.textContent=grid[r][c];
+      d.dataset.r=r; d.dataset.c=c;
+      g.appendChild(d);
+    }
+  }
+}
+
+function renderWords(){
+  const wl=document.getElementById('word-list');
+  wl.innerHTML='';
+  for(const w of WORDS){
+    const d=document.createElement('div');
+    d.className='word'+(foundWords.has(w)?' done':'');
+    d.textContent=w;
+    d.id='word-'+w;
+    wl.appendChild(d);
+  }
+}
+
+let selecting=false;
+let selStart=null;
+let selCells=[];
+
+function cellAt(r,c){
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+function clearSel(){
+  selCells.forEach(([r,c])=>{
+    const el=cellAt(r,c);
+    if(el) el.classList.remove('sel');
+  });
+  selCells=[];
+}
+
+function lineCells(r0,c0,r1,c1){
+  const dr=Math.sign(r1-r0), dc=Math.sign(c1-c0);
+  const cells=[];
+  // 유효한 직선(가로/세로/대각선)인지 확인
+  const dRow=r1-r0, dCol=c1-c0;
+  const straight = (dRow===0 || dCol===0 || Math.abs(dRow)===Math.abs(dCol));
+  if(!straight) return null;
+  const len=Math.max(Math.abs(dRow),Math.abs(dCol))+1;
+  for(let i=0;i<len;i++){
+    cells.push([r0+dr*i, c0+dc*i]);
+  }
+  return cells;
+}
+
+function updateSel(r1,c1){
+  const [r0,c0]=selStart;
+  const cells=lineCells(r0,c0,r1,c1);
+  clearSel();
+  if(!cells) return;
+  cells.forEach(([r,c])=>{
+    const el=cellAt(r,c);
+    if(el) el.classList.add('sel');
+  });
+  selCells=cells;
+}
+
+function checkSelection(){
+  if(selCells.length<1){ clearSel(); return; }
+  const str = selCells.map(([r,c])=>grid[r][c]).join('');
+  const rev = [...str].reverse().join('');
+  let matched=null;
+  for(const w of WORDS){
+    if(foundWords.has(w)) continue;
+    if(w===str||w===rev){ matched=w; break; }
+  }
+  if(matched){
+    foundWords.add(matched);
+    selCells.forEach(([r,c])=>{
+      const el=cellAt(r,c);
+      if(el){ el.classList.add('found'); el.classList.remove('sel'); }
+    });
+    selCells=[];
+    document.getElementById('found-count').textContent=foundWords.size;
+    document.getElementById('word-'+matched).classList.add('done');
+    if(foundWords.size===WORDS.length) winGame();
+  } else {
+    clearSel();
+  }
+}
+
+function getCellFromEvent(e){
+  const t = e.touches ? e.touches[0] : e;
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  if(el && el.classList.contains('cell')) return el;
+  return null;
+}
+
+function onStart(e){
+  const el = e.target.closest('.cell') || getCellFromEvent(e);
+  if(!el) return;
+  e.preventDefault();
+  selecting=true;
+  selStart=[+el.dataset.r, +el.dataset.c];
+  clearSel();
+  el.classList.add('sel');
+  selCells=[[selStart[0],selStart[1]]];
+}
+function onMove(e){
+  if(!selecting) return;
+  e.preventDefault();
+  const el=getCellFromEvent(e);
+  if(!el) return;
+  updateSel(+el.dataset.r, +el.dataset.c);
+}
+function onEnd(e){
+  if(!selecting) return;
+  selecting=false;
+  checkSelection();
+}
+
+function startTimer(){
+  startTime=Date.now();
+  timerInterval=setInterval(()=>{
+    const s=Math.floor((Date.now()-startTime)/1000);
+    document.getElementById('timer').textContent=fmt(s);
+  },1000);
+}
+function fmt(s){
+  const m=Math.floor(s/60), sec=s%60;
+  return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+
+function winGame(){
+  clearInterval(timerInterval);
+  const s=Math.floor((Date.now()-startTime)/1000);
+  document.getElementById('final-time').textContent=fmt(s);
+  document.getElementById('overlay').classList.add('show');
+}
+
+function newGame(){
+  document.getElementById('overlay').classList.remove('show');
+  foundWords=new Set();
+  clearInterval(timerInterval);
+  buildGrid();
+  renderGrid();
+  renderWords();
+  document.getElementById('found-count').textContent='0';
+  document.getElementById('timer').textContent='00:00';
+  startTimer();
+}
+
+const gridEl=document.getElementById('grid');
+gridEl.addEventListener('mousedown', onStart);
+document.addEventListener('mousemove', onMove);
+document.addEventListener('mouseup', onEnd);
+gridEl.addEventListener('touchstart', onStart, {passive:false});
+gridEl.addEventListener('touchmove', onMove, {passive:false});
+document.addEventListener('touchend', onEnd);
+
+newGame();
+</script>
+</body>
+</html>
